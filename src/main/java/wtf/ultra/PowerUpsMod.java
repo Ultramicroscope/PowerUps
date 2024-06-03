@@ -14,6 +14,9 @@ import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import wtf.ultra.mixin.IRenderManagerMixin;
 
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,26 +30,40 @@ public class PowerUpsMod {
     private static final Pattern ARENA_LOCRAW = Pattern.compile("^\\{\"server\":\"([^\"]*)\",\"gametype\":\"ARENA\",\"mode\":\"[^\"]*\",\"map\":\"([^\"]*)\"}$");
     private static final Pattern ACTIVATED = Pattern.compile("^([a-zA-Z0-9_]{2,16}) activated the (HEALING|DAMAGE|MAGICAL KEY) powerup!$");
     private static final Pattern SPAWNED = Pattern.compile("^The (HEALING|DAMAGE|MAGICAL KEY) PowerUp has spawned!$");
+    private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1);
     private static final Minecraft mc = Minecraft.getMinecraft();
-    private static boolean firstHp = false, brawlin = false;
-    private static Vec3 dmgPos, hpPos, keyPos;
-    private static long start, hp, dmg;
     private static final int displayList;
+
+    private static Vec3 dmgPos, hpPos, keyPos;
+    private static boolean firstHp, brawlin;
+    private static long start, hp, dmg;
     private static String dmgUser;
 
     public static boolean locdin = false;
+
+    public static void sendLocraw() {
+        SCHEDULER.schedule(
+                () -> mc.thePlayer.sendChatMessage("/locraw"),
+                500, TimeUnit.MILLISECONDS);
+    }
+
 
     public static void setStart(long ms) {
         start = ms;
         hp = ms;
         dmg = ms;
         firstHp = true;
+        dmgPos = null;
+        hpPos = null;
+        keyPos = null;
+        dmgUser = null;
     }
 
     // dirty short-circuit magic only returns true if msg is locraw
     public static boolean handleMsg(String text) {
         //noinspection PointlessBooleanExpression
-        return checkLocraw(text) || (brawlin
+        return (locdin && checkLocraw(text))
+                || (brawlin
                 && checkVs(text)
                 && checkArena(text)
                 && checkSpawned(text)
@@ -56,9 +73,11 @@ public class PowerUpsMod {
 
     private static boolean checkLocraw(String text) {
         boolean isLocraw = text.matches("\\{(\".*\":\".*\",)?+\".*\":\".*\"}");
-        if (isLocraw)
+        if (isLocraw) {
             // group1: mininserver, group2: mapname
             brawlin = ARENA_LOCRAW.matcher(text).matches();
+            locdin = false;
+        }
         return isLocraw;
     }
 

@@ -16,15 +16,12 @@ public class NetHandlerPlayClientMixin {
     public void handleJoin(S01PacketJoinGame packetIn, CallbackInfo ci) {
         if (Minecraft.getMinecraft().getCurrentServerData().serverIP.contains("hypixel.")) {
             PowerUpsMod.locdin = true;
-            Minecraft.getMinecraft().thePlayer.sendChatMessage("/locraw");
+            PowerUpsMod.sendLocraw();
         }
     }
 
     @Inject(method = "handleChat", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/play/server/S02PacketChat;getType()B", ordinal = 1), cancellable = true)
     public void handleChat(S02PacketChat packetIn, CallbackInfo ci) {
-        if (PowerUpsMod.handleMsg(packetIn.getChatComponent().getUnformattedText())) {
-            PowerUpsMod.locdin = false;
-            ci.cancel();
-        }
+        if (PowerUpsMod.handleMsg(packetIn.getChatComponent().getUnformattedText())) ci.cancel();
     }
 }
