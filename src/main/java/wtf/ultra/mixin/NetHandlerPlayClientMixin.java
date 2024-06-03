@@ -15,8 +15,8 @@ public class NetHandlerPlayClientMixin {
     @Inject(method = "handleJoinGame", at = @At("TAIL"))
     public void handleJoin(S01PacketJoinGame packetIn, CallbackInfo ci) {
         if (Minecraft.getMinecraft().getCurrentServerData().serverIP.contains("hypixel.")) {
-            PowerUpsMod.locdin = true;
             PowerUpsMod.sendLocraw();
+            PowerUpsMod.locin();
         }
     }
 

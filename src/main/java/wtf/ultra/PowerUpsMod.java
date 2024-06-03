@@ -34,12 +34,10 @@ public class PowerUpsMod {
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final int displayList;
 
+    private static boolean firstHp, brawlin, locdin;
     private static Vec3 dmgPos, hpPos, keyPos;
-    private static boolean firstHp, brawlin;
     private static long start, hp, dmg;
     private static String dmgUser;
-
-    public static boolean locdin = false;
 
     public static void sendLocraw() {
         SCHEDULER.schedule(
@@ -47,6 +45,9 @@ public class PowerUpsMod {
                 500, TimeUnit.MILLISECONDS);
     }
 
+    public static void locin() {
+        locdin = true;
+    }
 
     public static void setStart(long ms) {
         start = ms;
@@ -59,7 +60,7 @@ public class PowerUpsMod {
         dmgUser = null;
     }
 
-    // dirty short-circuit magic only returns true if msg is locraw
+    // dirty short-circuit only returns true if msg is locraw while locdin
     public static boolean handleMsg(String text) {
         //noinspection PointlessBooleanExpression
         return (locdin && checkLocraw(text))
