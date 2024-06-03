@@ -1,0 +1,18 @@
+[
+  {
+    "modid": "${modid}",
+    "name": "PowerUps",
+    "description": "Info for when PowerUps spawn in Arena Brawl.",
+    "version": "${version}",
+    "mcversion": "${mcversion}",
+    "url": "https://github.com/Ultramicroscope/PowerUps",
+    "updateUrl": "",
+    "authorList": [
+      "honeyfuggle"
+    ],
+    "credits": "",
+    "logoFile": "",
+    "screenshots": [],
+    "dependencies": []
+  }
+]
