@@ -38,8 +38,8 @@ public class PowerUpsMod {
 
     private static boolean firstHp, brawlin, locdin;
     private static Vec3 dmgPos, hpPos, keyPos;
+    private static String dmgUser, mini;
     private static long start, hp, dmg;
-    private static String dmgUser;
 
     public static void sendLocraw() {
         SCHEDULER.schedule(
@@ -77,9 +77,17 @@ public class PowerUpsMod {
     private static boolean checkLocraw(String text) {
         boolean isLocraw = LOCRAW.matcher(text).matches();
         if (isLocraw) {
-            // group1: mininserver, group2: mapname
-            brawlin = ARENA_LOCRAW.matcher(text).matches();
             locdin = false;
+            // group1: mininserver, group2: mapname
+            Matcher matchResult = ARENA_LOCRAW.matcher(text);
+            //noinspection AssignmentUsedAsCondition
+            if (brawlin = matchResult.matches()) {
+                String server = matchResult.group(1);
+                if (mini == null || !mini.equals(server)) {
+                    mini = server;
+                    start = 0;
+                }
+            }
         }
         return isLocraw;
     }
@@ -112,7 +120,7 @@ public class PowerUpsMod {
                 case "DAMAGE":
                     dmgPos = entity.getPositionVector();
                     break;
-                case "MAGICAL KEY":
+                default: //case "MAGICAL KEY":
                     keyPos = entity.getPositionVector();
                     break;
             }
@@ -200,65 +208,65 @@ public class PowerUpsMod {
 
     @SubscribeEvent
     public void onRenderWorldLast(RenderWorldLastEvent event) {
-        if (!brawlin) return;
+        if (brawlin && start > 0) {
+            IRenderManagerMixin rm = (IRenderManagerMixin) mc.getRenderManager();
+            double rx = rm.getRenderPosX();
+            double ry = rm.getRenderPosY();
+            double rz = rm.getRenderPosZ();
 
-        IRenderManagerMixin rm = (IRenderManagerMixin) mc.getRenderManager();
-        double rx = rm.getRenderPosX();
-        double ry = rm.getRenderPosY();
-        double rz = rm.getRenderPosZ();
-
-        glPushMatrix();
-
-        GlStateManager.enableBlend();
-        GlStateManager.disableDepth();
-        GlStateManager.disableLighting();
-        GlStateManager.disableTexture2D();
-
-        GlStateManager.shadeModel(GL_SMOOTH);
-        GlStateManager.blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-        glEnable(GL_LINE_SMOOTH);
-        glEnable(GL_MULTISAMPLE);
-        glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-
-        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
-
-        glTranslated(-rx, -ry, -rz);
-
-        if (dmgPos != null) {
             glPushMatrix();
-            glColor4d(1, 0, 0, 0.675);
-            glTranslated(dmgPos.xCoord, dmgPos.yCoord, dmgPos.zCoord);
-            glCallList(displayList);
+
+            GlStateManager.enableBlend();
+            GlStateManager.disableDepth();
+            GlStateManager.disableLighting();
+            GlStateManager.disableTexture2D();
+
+            GlStateManager.shadeModel(GL_SMOOTH);
+            GlStateManager.blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+            glEnable(GL_LINE_SMOOTH);
+            glEnable(GL_MULTISAMPLE);
+            glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+
+            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+
+            glTranslated(-rx, -ry, -rz);
+
+            if (dmgPos != null) {
+                glPushMatrix();
+                glColor4d(1, 0, 0, 0.675);
+                glTranslated(dmgPos.xCoord, dmgPos.yCoord, dmgPos.zCoord);
+                glCallList(displayList);
+                glPopMatrix();
+            }
+
+            if (hpPos != null) {
+                glPushMatrix();
+                glColor4d(0, 1, 0, 0.675);
+                glTranslated(hpPos.xCoord, hpPos.yCoord, hpPos.zCoord);
+                glCallList(displayList);
+                glPopMatrix();
+            }
+
+            if (keyPos != null) {
+                glPushMatrix();
+                glColor4d(0, 0, 1, 0.675);
+                glTranslated(keyPos.xCoord, keyPos.yCoord, keyPos.zCoord);
+                glCallList(displayList);
+                glPopMatrix();
+            }
+
+            glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+            glDisable(GL_MULTISAMPLE);
+            glDisable(GL_LINE_SMOOTH);
+
+            GlStateManager.enableTexture2D();
+            GlStateManager.enableLighting();
+            GlStateManager.enableDepth();
+            GlStateManager.disableBlend();
+
             glPopMatrix();
         }
-
-        if (hpPos != null) {
-            glPushMatrix();
-            glColor4d(0, 1, 0, 0.675);
-            glTranslated(hpPos.xCoord, hpPos.yCoord, hpPos.zCoord);
-            glCallList(displayList);
-            glPopMatrix();
-        }
-
-        if (keyPos != null) {
-            glPushMatrix();
-            glColor4d(0, 0, 1, 0.675);
-            glTranslated(keyPos.xCoord, keyPos.yCoord, keyPos.zCoord);
-            glCallList(displayList);
-            glPopMatrix();
-        }
-
-        glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-        glDisable(GL_MULTISAMPLE);
-        glDisable(GL_LINE_SMOOTH);
-
-        GlStateManager.enableTexture2D();
-        GlStateManager.enableLighting();
-        GlStateManager.enableDepth();
-        GlStateManager.disableBlend();
-
-        glPopMatrix();
     }
 
     static {
