@@ -21,7 +21,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL11.glVertex3d;
 import static org.lwjgl.opengl.GL13.GL_MULTISAMPLE;
 import static org.lwjgl.opengl.GL13.GL_SAMPLE_ALPHA_TO_COVERAGE;
 
@@ -30,6 +29,9 @@ public class PowerUpsMod {
     private static final Pattern ARENA_LOCRAW = Pattern.compile("^\\{\"server\":\"([^\"]*)\",\"gametype\":\"ARENA\",\"mode\":\"[^\"]*\",\"map\":\"([^\"]*)\"}$");
     private static final Pattern ACTIVATED = Pattern.compile("^([a-zA-Z0-9_]{2,16}) activated the (HEALING|DAMAGE|MAGICAL KEY) powerup!$");
     private static final Pattern SPAWNED = Pattern.compile("^The (HEALING|DAMAGE|MAGICAL KEY) PowerUp has spawned!$");
+    private static final Pattern LOCRAW = Pattern.compile("\\{(\".*\":\".*\",)?+\".*\":\".*\"}");
+    private static final Pattern ARENA = Pattern.compile("^\\s*ARENA: Arena\\d+$");
+    private static final Pattern VS = Pattern.compile("^\\s*VS$");
     private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1);
     private static final Minecraft mc = Minecraft.getMinecraft();
     private static final int displayList;
@@ -73,7 +75,7 @@ public class PowerUpsMod {
     }
 
     private static boolean checkLocraw(String text) {
-        boolean isLocraw = text.matches("\\{(\".*\":\".*\",)?+\".*\":\".*\"}");
+        boolean isLocraw = LOCRAW.matcher(text).matches();
         if (isLocraw) {
             // group1: mininserver, group2: mapname
             brawlin = ARENA_LOCRAW.matcher(text).matches();
@@ -83,13 +85,13 @@ public class PowerUpsMod {
     }
 
     private static boolean checkVs(String text) {
-        boolean isVs = text.matches("^\\s*VS$");
+        boolean isVs = VS.matcher(text).matches();
         if (isVs) mc.thePlayer.sendChatMessage("/who");
         return !isVs;
     }
 
     private static boolean checkArena(String text) {
-        boolean isArena = text.matches("^\\s*ARENA: Arena\\d+$");
+        boolean isArena = ARENA.matcher(text).matches();
         if (isArena) setStart(System.currentTimeMillis());
         return !isArena;
     }
@@ -187,7 +189,7 @@ public class PowerUpsMod {
                 long msLeft = 12000 - dmgTimer;
                 if (msLeft > 0) {
                     String text = String.format("%s%s's %sDMG: %s%d", EnumChatFormatting.DARK_GRAY,
-                            dmgUser,EnumChatFormatting.RED, EnumChatFormatting.WHITE, msLeft);
+                            dmgUser, EnumChatFormatting.RED, EnumChatFormatting.WHITE, msLeft);
                    mc.fontRendererObj.drawStringWithShadow(text,
                            hw - mc.fontRendererObj.getStringWidth(text) / 2f,
                            hh - 2 * fontHeight, 16777215);
@@ -287,10 +289,10 @@ public class PowerUpsMod {
                 double x1 = Math.cos(lng2);
                 double y1 = Math.sin(lng2);
 
-                glVertex3d(x0 * rz0,y0 * rz0, zz0);
-                glVertex3d(x0 * rz1,y0 * rz1, zz1);
-                glVertex3d(x1 * rz1,y1 * rz1, zz1);
-                glVertex3d(x1 * rz0,y1 * rz0, zz0);
+                glVertex3d(x0 * rz0, y0 * rz0, zz0);
+                glVertex3d(x0 * rz1, y0 * rz1, zz1);
+                glVertex3d(x1 * rz1, y1 * rz1, zz1);
+                glVertex3d(x1 * rz0, y1 * rz0, zz0);
             }
         }
 
