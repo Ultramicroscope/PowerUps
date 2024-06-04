@@ -29,7 +29,7 @@ public class PowerUpsMod {
     private static final Pattern ARENA_LOCRAW = Pattern.compile("^\\{\"server\":\"([^\"]*)\",\"gametype\":\"ARENA\",\"mode\":\"[^\"]*\",\"map\":\"([^\"]*)\"}$");
     private static final Pattern ACTIVATED = Pattern.compile("^([a-zA-Z0-9_]{2,16}) activated the (HEALING|DAMAGE|MAGICAL KEY) powerup!$");
     private static final Pattern SPAWNED = Pattern.compile("^The (HEALING|DAMAGE|MAGICAL KEY) PowerUp has spawned!$");
-    private static final Pattern LOCRAW = Pattern.compile("\\{(\".*\":\".*\",)?+\".*\":\".*\"}");
+    private static final Pattern LOCRAW = Pattern.compile("^\\{(\".*\":\".*\",)?+\".*\":\".*\"}$");
     private static final Pattern ARENA = Pattern.compile("^\\s*ARENA: Arena\\d+$");
     private static final Pattern VS = Pattern.compile("^\\s*VS$");
     private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1);
@@ -49,17 +49,6 @@ public class PowerUpsMod {
 
     public static void locin() {
         locdin = true;
-    }
-
-    public static void setStart(long ms) {
-        start = ms;
-        hp = ms;
-        dmg = ms;
-        firstHp = true;
-        dmgPos = null;
-        hpPos = null;
-        keyPos = null;
-        dmgUser = null;
     }
 
     // dirty short-circuit only returns true if msg is locraw while locdin
@@ -148,6 +137,17 @@ public class PowerUpsMod {
         }
 
         return !activated;
+    }
+
+    private static void setStart(long ms) {
+        start = ms;
+        hp = ms;
+        dmg = ms;
+        firstHp = true;
+        dmgPos = null;
+        hpPos = null;
+        keyPos = null;
+        dmgUser = null;
     }
 
     @Mod.EventHandler
