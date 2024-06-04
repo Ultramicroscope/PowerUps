@@ -122,7 +122,6 @@ public class PowerUpsMod {
                     break;
                 default: //case "MAGICAL KEY":
                     keyPos = entity.getPositionVector();
-                    break;
             }
 
             break;
