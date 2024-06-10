@@ -1,19 +1,19 @@
 package wtf.ultra;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GLAllocation;
 import net.minecraft.client.renderer.GlStateManager;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraft.util.Vec3;
 import net.minecraftforge.client.event.RenderGameOverlayEvent;
-import net.minecraftforge.client.event.RenderWorldLastEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.common.event.FMLInitializationEvent;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
+import wtf.ultra.mixin.IActiveRenderInfoMixin;
 import wtf.ultra.mixin.IRenderManagerMixin;
 
+import java.nio.FloatBuffer;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -21,8 +21,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.lwjgl.opengl.GL11.*;
-import static org.lwjgl.opengl.GL13.GL_MULTISAMPLE;
-import static org.lwjgl.opengl.GL13.GL_SAMPLE_ALPHA_TO_COVERAGE;
 
 @Mod(modid = "powerups", useMetadata=true)
 public class PowerUpsMod {
@@ -34,10 +32,9 @@ public class PowerUpsMod {
     private static final Pattern VS = Pattern.compile("^\\s*VS$");
     private static final ScheduledExecutorService SCHEDULER = Executors.newScheduledThreadPool(1);
     private static final Minecraft mc = Minecraft.getMinecraft();
-    private static final int displayList;
 
     private static boolean firstHp, brawlin, locdin;
-    private static Vec3 dmgPos, hpPos, keyPos;
+    private static Vec3 dPos, hPos, kPos;
     private static String dmgUser, mini;
     private static long start, hp, dmg;
 
@@ -47,9 +44,7 @@ public class PowerUpsMod {
                 500, TimeUnit.MILLISECONDS);
     }
 
-    public static void locin() {
-        locdin = true;
-    }
+    public static void locin() { locdin = true; }
 
     // dirty short-circuit only returns true if msg is locraw while locdin
     public static boolean handleMsg(String text) {
@@ -103,14 +98,14 @@ public class PowerUpsMod {
 
             switch (matchResult.group(1)) {
                 case "HEALING":
-                    hpPos = entity.getPositionVector();
+                    hPos = entity.getPositionVector();
                     if (firstHp) firstHp = false;
                     break;
                 case "DAMAGE":
-                    dmgPos = entity.getPositionVector();
+                    dPos = entity.getPositionVector();
                     break;
                 default: //case "MAGICAL KEY":
-                    keyPos = entity.getPositionVector();
+                    kPos = entity.getPositionVector();
             }
 
             break;
@@ -124,16 +119,16 @@ public class PowerUpsMod {
         boolean activated = matchResult.matches();
         if (activated) switch (matchResult.group(2)) {
             case "HEALING":
-                hpPos = null;
+                hPos = null;
                 hp = System.currentTimeMillis();
                 break;
             case "DAMAGE":
-                dmgPos = null;
+                dPos = null;
                 dmgUser = matchResult.group(1);
                 dmg = System.currentTimeMillis();
                 break;
             default: //case "MAGICAL KEY":
-                keyPos = null;
+                kPos = null;
         }
 
         return !activated;
@@ -144,10 +139,61 @@ public class PowerUpsMod {
         hp = ms;
         dmg = ms;
         firstHp = true;
-        dmgPos = null;
-        hpPos = null;
-        keyPos = null;
+        dPos = null;
+        hPos = null;
+        kPos = null;
         dmgUser = null;
+    }
+
+    private void rect(double left, double top, double right, double bottom,
+                      double r, double g, double b, double a) {
+        glColor4d(r, g, b, a);
+        glBegin(GL_QUADS);
+        glVertex2d(left, top);
+        glVertex2d(right, top);
+        glVertex2d(right, bottom);
+        glVertex2d(left, bottom);
+        glEnd();
+    }
+
+    private void draw(double x1, double y1, double z1, double x2, double y2, double z2,
+                      double hw, double hh, double r, double g, double b,
+                      float m0, float m4, float m8,  float m12,
+                      float m1, float m5, float m9,  float m13,
+                      float m2, float m6, float m10, float m14,
+                      float m3, float m7, float m11, float m15,
+                      float p0, float p4, float p8,  float p12,
+                      float p1, float p5, float p9,  float p13,
+//                    float p2, float p6, float p10, float p14,
+                      float p3, float p7, float p11, float p15) {
+        double x = x2 - x1;
+        double y = y2 - y1;
+        double z = z2 - z1;
+
+        double v1 = x * m0 + y * m4 + z * m8 + m12;
+        double v2 = x * m1 + y * m5 + z * m9 + m13;
+        double v3 = x * m2 + y * m6 + z * m10 + m14;
+        double v4 = x * m3 + y * m7 + z * m11 + m15;
+        x = v1 * p0 + v2 * p4 + v3 * p8  + v4 * p12;
+        y = v1 * p1 + v2 * p5 + v3 * p9  + v4 * p13;
+//      z = v1 * p2 + v2 * p6 + v3 * p10 + v4 * p14; // z-value (depth)
+        double cw = v1 * p3 + v2 * p7 + v3 * p11 + v4 * p15;
+
+        if (cw != 0) {
+            cw = 1 / cw;
+
+            double px = Math.min(hw * 2, Math.max(0, (x * cw + 1) * hw));
+            double py = Math.min(hh * 2, Math.max(0, (1 - y * cw) * hh));
+            if (cw < 0) {
+                px = hw - px < 0 ? 0 : hw * 2;
+                py = hh - py < 0 ? 0 : hh * 2;
+            }
+
+            double d = Math.max(0.2, Math.abs(hw - px) / hw);
+            double s = d * hw / 4;
+
+            rect(px - s, py + s, px + s, py - s, r, g, b, d);
+        }
     }
 
     @Mod.EventHandler
@@ -155,155 +201,121 @@ public class PowerUpsMod {
         MinecraftForge.EVENT_BUS.register(this);
     }
 
-    @SubscribeEvent
+    @SuppressWarnings("DataFlowIssue") @SubscribeEvent
     public void renderGameOverlay(RenderGameOverlayEvent.Post event) {
-        if (brawlin && start > 0 && event.type == RenderGameOverlayEvent.ElementType.TEXT) {
-            long now = System.currentTimeMillis();
-            int fontHeight = mc.fontRendererObj.FONT_HEIGHT + 1;
-
-            long hpTimer = now - hp;
-            if (firstHp) hpTimer += 30000;
-            long dmgTimer = now - dmg;
-
-            int line = 1;
-
+        if (brawlin && start > 0) {
             float hw = (float) event.resolution.getScaledWidth_double() / 2;
             float hh = (float) event.resolution.getScaledHeight_double() / 2;
 
-            if (hpPos == null && 57000 <= hpTimer && hpTimer < 90000) {
-                long attempt = (hpTimer - 54000) / 3000;
-                String text = String.format("%s%s%% %sHEALING %sin: %s%d", EnumChatFormatting.LIGHT_PURPLE,
-                        attempt == 11L ? "100" : String.format("%.1f", 100 * attempt / 11.0),
-                        EnumChatFormatting.GREEN, EnumChatFormatting.YELLOW, EnumChatFormatting.WHITE,
-                        attempt * 3000 + 57000 - hpTimer);
-                mc.fontRendererObj.drawStringWithShadow(text,
-                        hw - mc.fontRendererObj.getStringWidth(text) / 2f,
-                        fontHeight * line++ + hh, 16777215);
-            }
+            switch (event.type) {
+                case TEXT:
+                    long now = System.currentTimeMillis();
+                    int fontHeight = mc.fontRendererObj.FONT_HEIGHT + 1;
 
-            if (dmgPos == null && 57000 <= dmgTimer && dmgTimer < 90000) {
-                long attempt = (dmgTimer - 54000) / 3000;
-                String text = String.format("%s%s%% %sDAMAGE %sin: %s%d", EnumChatFormatting.LIGHT_PURPLE,
-                        attempt == 11L ? "100" : String.format("%.1f", 100 * attempt / 11.0),
-                        EnumChatFormatting.RED, EnumChatFormatting.YELLOW, EnumChatFormatting.WHITE,
-                        attempt * 3000 + 57000 - dmgTimer);
-                mc.fontRendererObj.drawStringWithShadow(text,
-                        hw - mc.fontRendererObj.getStringWidth(text) / 2f,
-                        fontHeight * line + hh, 16777215);
-            }
+                    long hpTimer = now - hp;
+                    if (firstHp) hpTimer += 30000;
+                    long dmgTimer = now - dmg;
 
-            if (dmgUser != null) {
-                long msLeft = 12000 - dmgTimer;
-                if (msLeft > 0) {
-                    String text = String.format("%s%s's %sDMG: %s%d", EnumChatFormatting.DARK_GRAY,
-                            dmgUser, EnumChatFormatting.RED, EnumChatFormatting.WHITE, msLeft);
-                   mc.fontRendererObj.drawStringWithShadow(text,
-                           hw - mc.fontRendererObj.getStringWidth(text) / 2f,
-                           hh - 2 * fontHeight, 16777215);
-                } else dmgUser = null;
-            }
-        }
-    }
+                    int line = 1;
 
-    @SubscribeEvent
-    public void onRenderWorldLast(RenderWorldLastEvent event) {
-        if (brawlin && start > 0) {
-            IRenderManagerMixin rm = (IRenderManagerMixin) mc.getRenderManager();
-            double rx = rm.getRenderPosX();
-            double ry = rm.getRenderPosY();
-            double rz = rm.getRenderPosZ();
+                    if (hPos == null && 57000 <= hpTimer && hpTimer < 90000) {
+                        long attempt = (hpTimer - 54000) / 3000;
+                        String text = String.format("%s%s%% %sHEALING %sin: %s%d", EnumChatFormatting.LIGHT_PURPLE,
+                                attempt == 11L ? "100" : String.format("%.1f", 100 * attempt / 11.0),
+                                EnumChatFormatting.GREEN, EnumChatFormatting.YELLOW, EnumChatFormatting.WHITE,
+                                attempt * 3000 + 57000 - hpTimer);
+                        mc.fontRendererObj.drawStringWithShadow(text,
+                                hw - mc.fontRendererObj.getStringWidth(text) / 2f,
+                                fontHeight * line++ + hh, 16777215);
+                    }
 
-            glPushMatrix();
+                    if (dPos == null && 57000 <= dmgTimer && dmgTimer < 90000) {
+                        long attempt = (dmgTimer - 54000) / 3000;
+                        String text = String.format("%s%s%% %sDAMAGE %sin: %s%d", EnumChatFormatting.LIGHT_PURPLE,
+                                attempt == 11L ? "100" : String.format("%.1f", 100 * attempt / 11.0),
+                                EnumChatFormatting.RED, EnumChatFormatting.YELLOW, EnumChatFormatting.WHITE,
+                                attempt * 3000 + 57000 - dmgTimer);
+                        mc.fontRendererObj.drawStringWithShadow(text,
+                                hw - mc.fontRendererObj.getStringWidth(text) / 2f,
+                                fontHeight * line + hh, 16777215);
+                    }
 
-            GlStateManager.enableBlend();
-            GlStateManager.disableDepth();
-            GlStateManager.disableLighting();
-            GlStateManager.disableTexture2D();
+                    if (dmgUser != null) {
+                        long msLeft = 12000 - dmgTimer;
+                        if (msLeft > 0) {
+                            String text = String.format("%s%s's %sDMG: %s%d", EnumChatFormatting.DARK_GRAY,
+                                    dmgUser, EnumChatFormatting.RED, EnumChatFormatting.WHITE, msLeft);
+                            mc.fontRendererObj.drawStringWithShadow(text,
+                                    hw - mc.fontRendererObj.getStringWidth(text) / 2f,
+                                    hh - 2 * fontHeight, 16777215);
+                        } else dmgUser = null;
+                    }
 
-            GlStateManager.shadeModel(GL_SMOOTH);
-            GlStateManager.blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+                    break;
+                case CROSSHAIRS:
+                    IRenderManagerMixin rm = (IRenderManagerMixin) mc.getRenderManager();
+                    double x = rm.getRenderPosX();
+                    double y = rm.getRenderPosY();
+                    double z = rm.getRenderPosZ();
 
-            glEnable(GL_LINE_SMOOTH);
-            glEnable(GL_MULTISAMPLE);
-            glEnable(GL_SAMPLE_ALPHA_TO_COVERAGE);
+                    FloatBuffer m = IActiveRenderInfoMixin.getMODELVIEW();
+                    FloatBuffer p = IActiveRenderInfoMixin.getPROJECTION();
 
-            glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+                    float m0  = m.get(0); float m4  = m.get(4); float m8  = m.get(8);  float m12 = m.get(12);
+                    float m1  = m.get(1); float m5  = m.get(5); float m9  = m.get(9);  float m13 = m.get(13);
+                    float m2  = m.get(2); float m6  = m.get(6); float m10 = m.get(10); float m14 = m.get(14);
+                    float m3  = m.get(3); float m7  = m.get(7); float m11 = m.get(11); float m15 = m.get(15);
 
-            glTranslated(-rx, -ry, -rz);
+                    float p0  = p.get(0); float p4  = p.get(4); float p8  = p.get(8);  float p12 = p.get(12);
+                    float p1  = p.get(1); float p5  = p.get(5); float p9  = p.get(9);  float p13 = p.get(13);
+//                  float p2  = p.get(2); float p6  = p.get(6); float p10 = p.get(10); float p14 = p.get(14);
+                    float p3  = p.get(3); float p7  = p.get(7); float p11 = p.get(11); float p15 = p.get(15);
 
-            if (dmgPos != null) {
-                glPushMatrix();
-                glColor4d(1, 0, 0, 0.675);
-                glTranslated(dmgPos.xCoord, dmgPos.yCoord, dmgPos.zCoord);
-                glCallList(displayList);
-                glPopMatrix();
-            }
+                    glPushMatrix();
 
-            if (hpPos != null) {
-                glPushMatrix();
-                glColor4d(0, 1, 0, 0.675);
-                glTranslated(hpPos.xCoord, hpPos.yCoord, hpPos.zCoord);
-                glCallList(displayList);
-                glPopMatrix();
-            }
+                    GlStateManager.enableBlend();
+                    GlStateManager.disableTexture2D();
 
-            if (keyPos != null) {
-                glPushMatrix();
-                glColor4d(0, 0, 1, 0.675);
-                glTranslated(keyPos.xCoord, keyPos.yCoord, keyPos.zCoord);
-                glCallList(displayList);
-                glPopMatrix();
-            }
+                    glEnable(GL_LINE_SMOOTH);
+                    GlStateManager.blendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-            glDisable(GL_SAMPLE_ALPHA_TO_COVERAGE);
-            glDisable(GL_MULTISAMPLE);
-            glDisable(GL_LINE_SMOOTH);
+                    if (dPos != null) draw(x, y, z, dPos.xCoord, dPos.yCoord, dPos.zCoord, hw, hh, 1, 0, 0,
+                            m0, m4, m8,  m12,
+                            m1, m5, m9,  m13,
+                            m2, m6, m10, m14,
+                            m3, m7, m11, m15,
+                            p0, p4, p8,  p12,
+                            p1, p5, p9,  p13,
+//                          p2, p6, p10, p14,
+                            p3, p7, p11, p15);
+                    if (hPos != null) draw(x, y, z, hPos.xCoord, hPos.yCoord, hPos.zCoord, hw, hh, 0, 1, 0,
+                            m0, m4, m8,  m12,
+                            m1, m5, m9,  m13,
+                            m2, m6, m10, m14,
+                            m3, m7, m11, m15,
+                            p0, p4, p8,  p12,
+                            p1, p5, p9,  p13,
+//                          p2, p6, p10, p14,
+                            p3, p7, p11, p15);
+                    if (kPos != null) draw(x, y, z, kPos.xCoord, kPos.yCoord, kPos.zCoord, hw, hh, 0, 0, 1,
+                            m0, m4, m8,  m12,
+                            m1, m5, m9,  m13,
+                            m2, m6, m10, m14,
+                            m3, m7, m11, m15,
+                            p0, p4, p8,  p12,
+                            p1, p5, p9,  p13,
+//                          p2, p6, p10, p14,
+                            p3, p7, p11, p15);
 
-            GlStateManager.enableTexture2D();
-            GlStateManager.enableLighting();
-            GlStateManager.enableDepth();
-            GlStateManager.disableBlend();
+                    glDisable(GL_LINE_SMOOTH);
 
-            glPopMatrix();
-        }
-    }
+                    GlStateManager.enableTexture2D();
+                    GlStateManager.disableBlend();
 
-    static {
-        int res = 64;
+                    glColor4d(1, 1, 1, 1);
 
-        double rseg = 2 * Math.PI / (double) res;
-        double radius = 1.5;
-
-        displayList = GLAllocation.generateDisplayLists(1);
-
-        glNewList(displayList, GL_COMPILE);
-        glBegin(GL_QUADS);
-        for (int i = 0; i <= res; i++) {
-            double lat0 = Math.PI * ((i - 1) / (double) res - 0.5);
-            double rz0 = Math.cos(lat0) * radius;
-            double zz0 = Math.sin(lat0) * radius;
-
-            double lat1 = Math.PI * (i / (double) res - 0.5);
-            double rz1 = Math.cos(lat1) * radius;
-            double zz1 = Math.sin(lat1) * radius;
-
-            for (int j = 0; j < res; j++) {
-                double lng1 = rseg * j;
-                double x0 = Math.cos(lng1);
-                double y0 = Math.sin(lng1);
-
-                double lng2 = rseg * (j + 1);
-                double x1 = Math.cos(lng2);
-                double y1 = Math.sin(lng2);
-
-                glVertex3d(x0 * rz0, y0 * rz0, zz0);
-                glVertex3d(x0 * rz1, y0 * rz1, zz1);
-                glVertex3d(x1 * rz1, y1 * rz1, zz1);
-                glVertex3d(x1 * rz0, y1 * rz0, zz0);
+                    glPopMatrix();
             }
         }
-
-        glEnd();
-        glEndList();
     }
 }
