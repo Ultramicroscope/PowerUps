@@ -261,15 +261,15 @@ public class PowerUpsMod {
                     FloatBuffer m = IActiveRenderInfoMixin.getMODELVIEW();
                     FloatBuffer p = IActiveRenderInfoMixin.getPROJECTION();
 
-                    float m0  = m.get(0); float m4  = m.get(4); float m8  = m.get(8);  float m12 = m.get(12);
-                    float m1  = m.get(1); float m5  = m.get(5); float m9  = m.get(9);  float m13 = m.get(13);
-                    float m2  = m.get(2); float m6  = m.get(6); float m10 = m.get(10); float m14 = m.get(14);
-                    float m3  = m.get(3); float m7  = m.get(7); float m11 = m.get(11); float m15 = m.get(15);
+                    float m0 = m.get(0); float m4 = m.get(4); float m8  = m.get(8);  float m12 = m.get(12);
+                    float m1 = m.get(1); float m5 = m.get(5); float m9  = m.get(9);  float m13 = m.get(13);
+                    float m2 = m.get(2); float m6 = m.get(6); float m10 = m.get(10); float m14 = m.get(14);
+                    float m3 = m.get(3); float m7 = m.get(7); float m11 = m.get(11); float m15 = m.get(15);
 
-                    float p0  = p.get(0); float p4  = p.get(4); float p8  = p.get(8);  float p12 = p.get(12);
-                    float p1  = p.get(1); float p5  = p.get(5); float p9  = p.get(9);  float p13 = p.get(13);
-//                  float p2  = p.get(2); float p6  = p.get(6); float p10 = p.get(10); float p14 = p.get(14);
-                    float p3  = p.get(3); float p7  = p.get(7); float p11 = p.get(11); float p15 = p.get(15);
+                    float p0 = p.get(0); float p4 = p.get(4); float p8  = p.get(8);  float p12 = p.get(12);
+                    float p1 = p.get(1); float p5 = p.get(5); float p9  = p.get(9);  float p13 = p.get(13);
+//                  float p2 = p.get(2); float p6 = p.get(6); float p10 = p.get(10); float p14 = p.get(14);
+                    float p3 = p.get(3); float p7 = p.get(7); float p11 = p.get(11); float p15 = p.get(15);
 
                     glPushMatrix();
 
